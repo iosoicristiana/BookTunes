@@ -7,6 +7,8 @@ using server_app.Models;
 using server_app.Models.DTOs;
 using System.Drawing.Printing;
 using System.Security.Claims;
+using System.Text.Json;
+
 
 namespace server_app.Controllers
 {
@@ -59,6 +61,8 @@ namespace server_app.Controllers
 
                 await _dbContext.Books.AddAsync(book);
                 await _dbContext.SaveChangesAsync();
+                Console.WriteLine("Book added to the database");
+                
             }
             else
             {
@@ -89,6 +93,60 @@ namespace server_app.Controllers
 
             return Ok();
         }
+
+        [HttpPost("remove/{gutenbergId}")]
+        [Authorize]
+        public async Task<IActionResult> RemoveBook(int gutenbergId)
+        {
+            Console.WriteLine("Received Gutenberg ID: " + gutenbergId);
+
+            var userSpotifyId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(userSpotifyId))
+            {
+                return Unauthorized("Invalid token or user not found");
+            }
+
+            var user = await _dbContext.Users
+                                       .Include(u => u.FavoriteBooks)
+                                       .FirstOrDefaultAsync(u => u.SpotifyId == userSpotifyId);
+
+            if (user == null)
+            {
+                return BadRequest("User not found");
+            }
+
+            var book = await _dbContext.Books.FirstOrDefaultAsync(b => b.GutenbergId == gutenbergId);
+
+            if (book == null)
+            {
+                return NotFound("Book not found in the database");
+            }
+
+            var userBook = await _dbContext.UserBooks
+                                            .FirstOrDefaultAsync(ub => ub.UserId == user.Id && ub.BookId == book.Id);
+
+            if (userBook == null)
+            {
+                return NotFound("The book is not in the user's favorites");
+            }
+
+            if (userBook != null)
+            {
+                Console.WriteLine("Removing book from favorites");
+                _dbContext.UserBooks.Remove(userBook);
+                await _dbContext.SaveChangesAsync();
+            }
+            else
+            {
+                return NotFound("The book is not in the user's favorites");
+            }
+
+            Console.WriteLine("Book removed from favorites");
+            return Ok("Book removed successfully from favorites");
+        }
+
+
 
         [HttpGet("getBooks")]
         [Authorize]
@@ -122,7 +180,9 @@ namespace server_app.Controllers
             
             ).ToList();
 
-            Console.WriteLine(favoriteBooks);
+            Console.WriteLine(favoriteBooks.Count);
+
+            
 
             return Ok(favoriteBooks);
         }

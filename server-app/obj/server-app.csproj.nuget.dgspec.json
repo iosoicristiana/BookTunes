@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\nicul\\OneDrive\\Desktop\\aplicatie-licenta\\server-app\\server-app.csproj": {}
+    "C:\\Users\\nicul\\OneDrive\\Desktop\\BookTunes\\BookTunes\\server-app\\server-app.csproj": {}
   },
   "projects": {
-    "C:\\Users\\nicul\\OneDrive\\Desktop\\aplicatie-licenta\\server-app\\server-app.csproj": {
+    "C:\\Users\\nicul\\OneDrive\\Desktop\\BookTunes\\BookTunes\\server-app\\server-app.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\nicul\\OneDrive\\Desktop\\aplicatie-licenta\\server-app\\server-app.csproj",
+        "projectUniqueName": "C:\\Users\\nicul\\OneDrive\\Desktop\\BookTunes\\BookTunes\\server-app\\server-app.csproj",
         "projectName": "server-app",
-        "projectPath": "C:\\Users\\nicul\\OneDrive\\Desktop\\aplicatie-licenta\\server-app\\server-app.csproj",
+        "projectPath": "C:\\Users\\nicul\\OneDrive\\Desktop\\BookTunes\\BookTunes\\server-app\\server-app.csproj",
         "packagesPath": "C:\\Users\\nicul\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\nicul\\OneDrive\\Desktop\\aplicatie-licenta\\server-app\\obj\\",
+        "outputPath": "C:\\Users\\nicul\\OneDrive\\Desktop\\BookTunes\\BookTunes\\server-app\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

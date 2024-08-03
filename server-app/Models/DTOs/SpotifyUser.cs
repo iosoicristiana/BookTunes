@@ -11,9 +11,21 @@ public class SpotifyUser
     [JsonProperty("display_name")]
     public string DisplayName { get; set; }  // User's display name
 
+    [JsonProperty("followers")]
+    public Followers Followers { get; set; }  // User's followers
+
     [JsonProperty("images")]
     public List<SpotifyImage> Images { get; set; }
 
+}
+
+public class Followers
+{
+    [JsonProperty("href")]
+    public string Href { get; set; }  // Link to the followers list
+
+    [JsonProperty("total")]
+    public int Total { get; set; }
 }
 
 public class SpotifyImage
