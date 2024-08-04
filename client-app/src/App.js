@@ -8,6 +8,7 @@ import Books from "./bookComponents/Books";
 import BookDetail from "./bookComponents/BookDetail";
 import { BookProvider } from "./bookComponents/BookContext";
 import MyLibrary from "./bookComponents/MyLibrary";
+import Reader from "./bookComponents/Reader";
 
 //import About from "./components/About";
 
@@ -23,7 +24,7 @@ function App() {
             <Route path="/books" element={<Books />} />
             <Route path="/book/:id" element={<BookDetail />} />
             <Route path="/library" element={<MyLibrary />} />
-
+            <Route path="/read/:id" element={<Reader />} />
             {/* 
            <Route path="/about" element={<About />} />
            More routes can be added here */}

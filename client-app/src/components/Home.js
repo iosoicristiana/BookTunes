@@ -39,7 +39,7 @@ const Home = () => {
   };
 
   return (
-    <Layout className="layout" style={{ minHeight: "100vh" }}>
+    <Layout className="layout" style={{ minHeight: "calc(100vh - 70px)" }}>
       <Content style={heroStyle}>
         <Card style={cardStyle}>
           <Title

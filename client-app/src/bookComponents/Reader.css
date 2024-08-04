@@ -1,0 +1,37 @@
+.reader-layout {
+    height: calc(100vh - 64px);
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .toc-toggle {
+    position: fixed;
+    top: 70px; /* Adjust according to your header height */
+    left: 10px;
+    z-index: 1000;
+  }
+  
+  .toc-menu {
+    background: #fff;
+    border-right: 1px solid #e8e8e8;
+    height: calc(100vh - 70px); /* Adjust according to your header height */
+    overflow-y: auto;
+  }
+  
+  .content-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 80%; /* Adjust as needed */
+    width: 80%; /* Adjust as needed */
+  }
+  
+  .content {
+    background: #fff;
+    height: 100%;
+    width: 100%;
+    overflow: auto;
+    border: 1px solid #e8e8e8;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  }
+  

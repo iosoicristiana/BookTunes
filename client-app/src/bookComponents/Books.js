@@ -140,7 +140,8 @@ const Books = () => {
             backgroundPosition: "center",
             borderRadius: "10px",
             color: "white",
-            padding: "40px 20px",
+            marginTop: "-40px",
+            padding: "10px 20px",
             position: "relative",
           }}
         >

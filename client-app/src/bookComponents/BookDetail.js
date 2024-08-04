@@ -177,7 +177,7 @@ const BookDetails = () => {
                   Subjects
                 </Title>
                 {bookDetail.subjects.map((subject) => (
-                  <Tag key={subject} color="geekblue" style={tagStyle}>
+                  <Tag key={subject} color="#D4AF37" style={tagStyle}>
                     {subject}
                   </Tag>
                 ))}
@@ -192,7 +192,7 @@ const BookDetails = () => {
                   Bookshelves
                 </Title>
                 {bookDetail.bookshelves.map((bookshelf) => (
-                  <Tag key={bookshelf} color="green" style={tagStyle}>
+                  <Tag key={bookshelf} color="#4682B4" style={tagStyle}>
                     {bookshelf}
                   </Tag>
                 ))}
@@ -208,6 +208,7 @@ const BookDetails = () => {
               >
                 <Button
                   type="primary"
+                  size="large"
                   icon={
                     isFavorite ? (
                       <StarFilled style={{ color: "#fadb14" }} />
@@ -227,6 +228,7 @@ const BookDetails = () => {
                 </Button>
                 <Button
                   type="primary"
+                  size="large"
                   icon={<PlayCircleOutlined />}
                   onClick={handleGeneratePlaylistClick}
                   loading={isGeneratingPlaylist}
@@ -241,12 +243,14 @@ const BookDetails = () => {
                 </Button>
                 <Button
                   type="primary"
+                  size="large"
                   icon={<ReadOutlined />}
                   onClick={handleReadBookClick}
                   style={{
                     backgroundColor: token.colorPrimary,
                     borderColor: token.colorPrimary,
                     color: token.colorText,
+
                     minWidth: "30%",
                   }}
                 >

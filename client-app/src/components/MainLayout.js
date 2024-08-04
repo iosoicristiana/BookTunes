@@ -12,7 +12,7 @@ const MainLayout = ({ children }) => {
       >
         <Navbar />
       </Header>
-      <Content style={{ padding: "0", minHeight: "100vh", marginTop: "30px" }}>
+      <Content style={{ padding: "0", minHeight: "100vh", marginTop: "64px" }}>
         <div style={{ minHeight: 380 }}>{children}</div>
       </Content>
       <Footer style={{ textAlign: "center" }}>BookTunes ©2024</Footer>
