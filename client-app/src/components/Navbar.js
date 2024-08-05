@@ -44,7 +44,7 @@ const Navbar = () => {
       icon: <PlayCircleOutlined />,
       label: "My Playlists",
       style: { color: styles.Menu.itemColor },
-      onClick: () => navigate("/my-playlists"), // Navigate to My Playlists
+      onClick: () => navigate("/myplaylists"), // Navigate to My Playlists
     },
     {
       key: "4",

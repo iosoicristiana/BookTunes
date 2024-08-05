@@ -4,6 +4,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using server_app.Data;
 using server_app.Models;
+using server_app.Models.DTOs;
 using System.Drawing.Printing;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net.Http.Headers;
@@ -233,4 +234,32 @@ public class SpotifyService
             Console.WriteLine($"Failed to add tracks to playlist. Status Code: {response.StatusCode}");
         }
     }
+
+    public async Task<List<Track>> GetPlaylistTracks(string playlistId, string userSpotifyId)
+    {
+        var accessToken = await _dbContext.Users.Where(u => u.SpotifyId == userSpotifyId).Select(u => u.AccessToken).FirstOrDefaultAsync();
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        var response = await _httpClient.GetAsync($"https://api.spotify.com/v1/playlists/{playlistId}/tracks");
+        if (response.IsSuccessStatusCode)
+        {
+            var jsonContent = await response.Content.ReadAsStringAsync();
+            var trackData = JObject.Parse(jsonContent)["items"] as JArray;
+
+            var tracks = trackData.Select(track => new Track
+            {
+                Id = track["track"]["id"].ToString(),
+                Name = track["track"]["name"].ToString(),
+                Artists = string.Join(", ", track["track"]["artists"].Select(a => a["name"].ToString())),
+                Album = track["track"]["album"]["name"].ToString(),
+                Duration = (int)track["track"]["duration_ms"],
+                SpotifyUrl = track["track"]["external_urls"]["spotify"].ToString(),
+            }).ToList();
+
+            return tracks;
+        }
+
+        return new List<Track>();
+    }
+
 }

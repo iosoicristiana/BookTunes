@@ -1,11 +1,15 @@
 ﻿using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using server_app.Models.DTOs;
 using System.Net.Http;
 using System.Security.Claims;
 using System.Text.Json;
+using server_app.Data;
+using Microsoft.AspNetCore.Cors;
 
 namespace server_app.Controllers
 {
@@ -17,6 +21,7 @@ namespace server_app.Controllers
         private readonly SpotifyService _spotifyService;
         private readonly IConfiguration _configuration;
         private readonly ILogger<AuthController> _logger;
+        private readonly ApplicationDbContext _dbContext;
 
         public AuthController(SpotifyService spotifyService, IConfiguration configuration, ILogger<AuthController> logger)
         {
@@ -110,7 +115,23 @@ namespace server_app.Controllers
                         await _spotifyService.SaveOrUpdateUser(userInfo, tokenResponse.AccessToken, tokenResponse.RefreshToken);
 
                         var jwtToken = _spotifyService.GenerateJwtToken(userInfo.Id);
+
+
+                        //// Set the access token in an HTTP-only, secure cookie
+                        //var cookieOptions = new CookieOptions
+                        //{
+                        //    HttpOnly = true,
+                        //    Secure = true,
+                        //    SameSite = SameSiteMode.Strict,
+                        //    Expires = DateTimeOffset.UtcNow.AddHours(1) // Set the cookie to expire after 1 hour or the token expiry time
+                        //};
+
+                        //Response.Cookies.Append("SpotifyAccessToken", tokenResponse.AccessToken, cookieOptions);
+
+
+
                         return Ok(new { token = jwtToken });
+
                     }
                     else
                     { 
@@ -122,10 +143,11 @@ namespace server_app.Controllers
             }
             catch (Exception ex)
             {
-              
+                _logger.LogError($"An error occurred while getting token from Spotify: {ex.Message}");
                 return StatusCode(500, "An internal server error occurred.");
             }
         }
+
 
         [HttpPost("test")]
         public IActionResult SimpleTest([FromBody] CodeRequest spotifyCode)

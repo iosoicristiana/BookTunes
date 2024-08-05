@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Routing;
 using Microsoft.EntityFrameworkCore;
@@ -46,7 +47,48 @@ namespace server_app.Controllers
             return Ok(new { AccessToken = SpotifyAccessToken });
         }
 
-        [HttpGet("getProfile")]
+        [HttpGet("setTokenCookie")]
+        [Authorize]
+        public async Task<IActionResult> SetTokenCookie()
+        {
+            var userSpotifyId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(userSpotifyId))
+            {
+                return Unauthorized("Invalid token or user not found");
+            }
+
+            var user = await _dbContext.Users.AsNoTracking().Where(u => u.SpotifyId == userSpotifyId).FirstOrDefaultAsync();
+
+            if (user == null)
+            {
+                return BadRequest("User not found");
+            }
+
+            var accessToken = user.AccessToken;
+
+            if (string.IsNullOrEmpty(accessToken))
+            {
+                return NotFound("Access token not found");
+            }
+
+            var cookieOptions = new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.None // Needed for cross-site cookies
+            };
+
+            Response.Cookies.Append("SpotifyAccessToken", accessToken, cookieOptions);
+
+            return Ok(new { message = "Access token set in cookie" });
+
+
+        }
+    
+
+
+    [HttpGet("getProfile")]
         [Authorize]
         public async Task<IActionResult> GetProfile()
         {

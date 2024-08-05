@@ -1,27 +1,13 @@
 import React from "react";
-import ReactDOM from "react-dom/client";
 import App from "./App";
-import { ConfigProvider } from "antd";
-import { ThemeProvider, useTheme } from "./theming/themeContext";
+import { createRoot } from "react-dom/client";
 
-import "antd/dist/reset.css"; // for Ant Design version 5+
+import "antd/dist/reset.css";
 
-const root = ReactDOM.createRoot(document.getElementById("root"));
-
-const ThemedApp = () => {
-  const { themeConfig } = useTheme(); // Access the theme config from context
-
-  return (
-    <ConfigProvider theme={themeConfig}>
-      <App />
-    </ConfigProvider>
-  );
+const Main = () => {
+  return <App />;
 };
 
-root.render(
-  <React.StrictMode>
-    <ThemeProvider>
-      <ThemedApp />
-    </ThemeProvider>
-  </React.StrictMode>
-);
+const container = document.getElementById("root");
+const root = createRoot(container);
+root.render(<Main />);

@@ -114,7 +114,7 @@ namespace server_app.Services
 
 
 
-        public async Task<Playlist> GeneratePlaylistForBook(string userId, int bookId)
+        public async Task<Playlist> GeneratePlaylistForBook(string userId, int bookId, PlaylistGenerationRequest request)
         {
             var user = _context.Users.FirstOrDefault(u => u.Id == userId);
             var book = _context.Books.FirstOrDefault(b => b.Id == bookId);
@@ -155,6 +155,23 @@ namespace server_app.Services
 
             List<String> seedGenres = GetGenresFromEmotions(sentimentData.Emotions, subjects);
 
+            if (request.SoundtrackType == "Classical")
+            {
+                seedGenres = new List<string> { "classical" };
+            }
+
+            // checking if the user has a popularity preference, we will add this to the request
+
+            // checking if there are decades preferences, we will filter the recommendations at the end based on this
+
+            //checking if they want to include their spotify prefereneces -> we will extract a song from their top stats and use it as a seed
+
+            //momentan doar le afisam in consola sa stiu ca exista 
+            Console.WriteLine(request.PopularityRange);
+            Console.WriteLine(request.Decades);
+            Console.WriteLine(request.UseSpotifyPreferences);
+
+
             Console.WriteLine(seedGenres);
 
             List<string> allTrackUris = new List<string>();
@@ -180,7 +197,7 @@ namespace server_app.Services
             }
 
             //var recommendations = await _spotifyService.GetRecommendations(userId, seedGenre);
-           var trackUris = allTrackUris.Distinct().Take(50).ToList();
+           var trackUris = allTrackUris.Distinct().Take(100).ToList();
             var Desription = $"A playlist based on the book {book.Title}";
             var playlistId = await _spotifyService.CreatePlaylist(user.SpotifyId, book.Title, Desription);
             await _spotifyService.AddTracksToPlaylist(playlistId, trackUris, userId);

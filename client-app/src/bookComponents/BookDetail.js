@@ -10,6 +10,8 @@ import {
   Tag,
   Rate,
   Tooltip,
+  Modal,
+  Result,
 } from "antd";
 import {
   StarOutlined,
@@ -21,6 +23,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import GoogleBooksAPI from "./GoogleBooksAPI"; // Custom API module to fetch book details from Google Books API
 import { useTheme } from "../theming/themeContext"; // Import the useTheme hook
 import { useBookContext } from "./BookContext";
+import PlaylistPreferencesModal from "../spotifyComponents/PlaylistPreferencesModal";
 
 const { Content } = Layout;
 const { Title, Paragraph } = Typography;
@@ -39,7 +42,10 @@ const BookDetails = () => {
   const [description, setDescription] = useState("");
   const [rating, setRating] = useState(null);
   const [reviewsCount, setReviewsCount] = useState(null);
-  const [isGeneratingPlaylist, setIsGeneratingPlaylist] = useState(false);
+  const [ModalVisible, setModalVisible] = useState(false);
+  const [SuccessModalVisible, setSuccessModalVisible] = useState(false);
+  const [generatedPlaylist, setGeneratedPlaylist] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   const { themeConfig } = useTheme(); // Accessing theme configuration
   const { token } = themeConfig;
@@ -92,13 +98,44 @@ const BookDetails = () => {
     setIsFavorite(!isFavorite);
   };
 
-  const handleGeneratePlaylistClick = () => {
-    setIsGeneratingPlaylist(true);
-    // Simulate generating a playlist
-    setTimeout(() => {
-      setIsGeneratingPlaylist(false);
-      // Navigate to playlist page or display success message
-    }, 2000);
+  const handleGeneratePlaylist = async (preferences) => {
+    try {
+      setLoading(true);
+      console.log("Generating playlist with preferences:", preferences);
+      const response = await fetch(
+        `https://localhost:7252/api/Playlist/generate`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${sessionStorage.getItem("authToken")}`,
+          },
+          body: JSON.stringify({ bookId: bookDetail.id, ...preferences }),
+        }
+      );
+      const result = await response.json();
+      if (response.ok) {
+        setGeneratedPlaylist(result);
+        console.log("Playlist generated successfully:", result);
+        setSuccessModalVisible(true);
+      } else {
+        console.log(result.message);
+        Modal.error({
+          title: "Failed to generate playlist",
+          content:
+            "An error occurred while generating the playlist. Please try again.",
+        });
+      }
+    } catch (error) {
+      Modal.error({
+        title: "Error",
+        content:
+          "An error occurred while generating the playlist. Please try again.",
+      });
+    } finally {
+      setLoading(false);
+      setModalVisible(false);
+    }
   };
 
   const handleReadBookClick = () => {
@@ -230,17 +267,23 @@ const BookDetails = () => {
                   type="primary"
                   size="large"
                   icon={<PlayCircleOutlined />}
-                  onClick={handleGeneratePlaylistClick}
-                  loading={isGeneratingPlaylist}
+                  onClick={() => setModalVisible(true)}
                   style={{
                     backgroundColor: token.colorPrimary,
                     borderColor: token.colorPrimary,
                     color: token.colorText,
                     minWidth: "30%",
                   }}
+                  loading={loading}
                 >
                   Generate Playlist
                 </Button>
+                <PlaylistPreferencesModal
+                  visible={ModalVisible}
+                  onCancel={() => setModalVisible(false)}
+                  onSubmit={handleGeneratePlaylist}
+                  loading={loading}
+                />
                 <Button
                   type="primary"
                   size="large"
@@ -250,7 +293,6 @@ const BookDetails = () => {
                     backgroundColor: token.colorPrimary,
                     borderColor: token.colorPrimary,
                     color: token.colorText,
-
                     minWidth: "30%",
                   }}
                 >
@@ -261,6 +303,30 @@ const BookDetails = () => {
           </Row>
         </Card>
       </Content>
+      <Modal
+        open={SuccessModalVisible}
+        title="Success"
+        onCancel={() => setSuccessModalVisible(false)}
+        footer={[null]}
+      >
+        <Result
+          status="success"
+          title="Playlist Generated Successfully"
+          subTitle={`Your playlist "${generatedPlaylist?.name}" has been generated successfully.`}
+          extra={[
+            <Button
+              type="primary"
+              key="view"
+              onClick={() => {
+                setSuccessModalVisible(false);
+                navigate(`/playlist/${generatedPlaylist.id}`);
+              }}
+            >
+              View Playlist
+            </Button>,
+          ]}
+        />
+      </Modal>
     </Layout>
   );
 };

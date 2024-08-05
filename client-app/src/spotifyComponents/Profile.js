@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { Typography, Spin, Alert, Avatar, Card, Row, Col, Button } from "antd";
-import { useNavigate } from "react-router-dom";
-
+import { useAuth } from "./authContext";
 const { Title, Paragraph } = Typography;
 
 const Profile = () => {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const navigate = useNavigate();
+
+  const { logout, fetchAccessTokenCookie } = useAuth();
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -33,6 +33,7 @@ const Profile = () => {
 
         const profileData = await profileResponse.json();
         setProfile(profileData);
+        //await fetchAccessTokenCookie();
       } catch (error) {
         setError(error.message);
         console.error("Failed to fetch profile:", error);
@@ -45,8 +46,7 @@ const Profile = () => {
   }, []);
 
   const handleLogout = () => {
-    sessionStorage.removeItem("authToken");
-    navigate("/");
+    logout();
   };
 
   const imageUrl =

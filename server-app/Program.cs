@@ -33,12 +33,15 @@ builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 builder.Logging.AddDebug();
 
+builder.Services.AddAuthentication();
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowFrontend",
-        builder => builder.WithOrigins("http://localhost:3000") 
+    options.AddPolicy("AllowAllOrigins",
+        builder => builder.WithOrigins("http://localhost:3000")
                           .AllowAnyMethod()
+                          .AllowCredentials()
                           .AllowAnyHeader());
+
 });
 
 
@@ -113,6 +116,8 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 //    });
 
 
+
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -124,6 +129,18 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateAudience = false,
             ValidateLifetime = true,
             ClockSkew = TimeSpan.Zero
+        };
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Cookies["SpotifyAccessToken"];
+                if (!string.IsNullOrEmpty(accessToken))
+                {
+                    context.Token = accessToken;
+                }
+                return Task.CompletedTask;
+            }
         };
     });
 
@@ -160,6 +177,7 @@ app.UseRouting();
 
 //app.UseCors(action => action.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());
 app.UseCors("AllowFrontend");
+app.UseCors("AllowAllOrigins");
 
 app.UseAuthentication();
 app.UseAuthorization();
