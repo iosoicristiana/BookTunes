@@ -1,10 +1,13 @@
 import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import {
   fetchPlaylistDetails,
   updatePlaylistDetails,
   addTrackToFavorites,
   fetchTrackAudioFeatures,
+  fetchMultipleTracksAudioFeatures,
+  FetchGenresForTracks,
+  fetchArtistDetails,
 } from "./utils";
 import { useAuth } from "./authContext";
 import { usePlayer } from "../playerComponents/PlayerContext";
@@ -12,7 +15,6 @@ import {
   Spin,
   Alert,
   Card,
-  List,
   Avatar,
   Input,
   Button,
@@ -23,21 +25,24 @@ import {
   Modal,
 } from "antd";
 import {
-  PlayCircleOutlined,
-  HeartOutlined,
-  HeartFilled,
   EditOutlined,
   SaveOutlined,
   SpotifyOutlined,
-  UserAddOutlined,
   BarChartOutlined,
+  BookOutlined,
 } from "@ant-design/icons";
-import PlaylistStats from "./PlaylistStats"; // Ensure this import
+import { Radar } from "react-chartjs-2";
+import { Chart, registerables } from "chart.js";
+import Statistics from "./Statistics";
+import TrackList from "./TrackList";
+
+Chart.register(...registerables);
 
 const { Title, Text } = Typography;
 
 const PlaylistDetail = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { fetchAccessToken } = useAuth();
   const { play } = usePlayer();
   const [playlist, setPlaylist] = useState(null);
@@ -47,8 +52,12 @@ const PlaylistDetail = () => {
   const [newTitle, setNewTitle] = useState("");
   const [newDescription, setNewDescription] = useState("");
   const [favoriteTracks, setFavoriteTracks] = useState(new Set());
-  const [isModalVisible, setIsModalVisible] = useState(false);
   const [audioFeatures, setAudioFeatures] = useState(null);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [generalStats, setGeneralStats] = useState(null);
+  const [trackStats, setTrackStats] = useState(null);
+  const [genreStats, setGenreStats] = useState(null);
+  const [isDrawerVisible, setIsDrawerVisible] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -60,8 +69,21 @@ const PlaylistDetail = () => {
         if (accessToken) {
           const data = await fetchPlaylistDetails(id);
           setPlaylist(data);
+          console.log(data);
           setNewTitle(data.name);
           setNewDescription(data.description);
+
+          const trackIds = data.tracks.items.map((item) => item.track.id);
+          const audioFeaturesData = await fetchMultipleTracksAudioFeatures(
+            trackIds
+          );
+          calculateGeneralStats(audioFeaturesData);
+          setTrackStats(audioFeaturesData);
+
+          const genres = await fetchGenresForTracks(data.tracks.items);
+
+          console.log("Gnres", genres);
+          calculateGenreStats(genres);
         } else {
           setError("Access token not available");
         }
@@ -74,6 +96,87 @@ const PlaylistDetail = () => {
 
     fetchData();
   }, [id, fetchAccessToken]);
+
+  const calculateGeneralStats = (audioFeaturesData) => {
+    if (!Array.isArray(audioFeaturesData)) return;
+
+    const stats = audioFeaturesData.reduce(
+      (acc, feature) => {
+        acc.danceability += feature.danceability;
+        acc.energy += feature.energy;
+        acc.speechiness += feature.speechiness;
+        acc.acousticness += feature.acousticness;
+        acc.instrumentalness += feature.instrumentalness;
+        acc.liveness += feature.liveness;
+        acc.valence += feature.valence;
+        return acc;
+      },
+      {
+        danceability: 0,
+        energy: 0,
+        speechiness: 0,
+        acousticness: 0,
+        instrumentalness: 0,
+        liveness: 0,
+        valence: 0,
+      }
+    );
+
+    const totalTracks = audioFeaturesData.length;
+    for (const key in stats) {
+      stats[key] /= totalTracks;
+    }
+
+    setGeneralStats(stats);
+  };
+
+  const fetchGenresForTracks = async (tracks) => {
+    try {
+      const artistIds = tracks.flatMap((item) =>
+        item.track && item.track.artists
+          ? item.track.artists.map((artist) => artist.id)
+          : []
+      );
+      const uniqueArtistIds = [...new Set(artistIds)];
+
+      console.log("Fetching genres for artist IDs:", uniqueArtistIds);
+
+      const artistDetails = await Promise.all(
+        uniqueArtistIds.map(async (id) => {
+          try {
+            const artist = await fetchArtistDetails(id);
+            return artist;
+          } catch (error) {
+            console.error(
+              `Failed to fetch details for artist ID ${id}:`,
+              error
+            );
+            return null;
+          }
+        })
+      );
+
+      const validArtistDetails = artistDetails.filter(
+        (artist) => artist !== null
+      );
+      const genres = validArtistDetails.flatMap((artist) => artist.genres);
+
+      console.log("Fetched genres:", genres);
+
+      return genres;
+    } catch (error) {
+      console.error("Error fetching genres for tracks:", error);
+      return [];
+    }
+  };
+  const calculateGenreStats = (genres) => {
+    const genreCount = genres.reduce((acc, genre) => {
+      acc[genre] = (acc[genre] || 0) + 1;
+      return acc;
+    }, {});
+
+    setGenreStats(genreCount);
+  };
 
   const handleEdit = () => {
     setIsEditing(true);
@@ -101,14 +204,29 @@ const PlaylistDetail = () => {
   };
 
   const handlePlayTrack = (trackUri) => {
-    play(trackUri);
+    if (!playlist || !trackUri) {
+      console.error("Playlist or track URI is not ready");
+      return;
+    }
+
+    const playlistUri = playlist.uri; // Ensure the playlist URI is available
+    if (typeof trackUri !== "string" || typeof playlistUri !== "string") {
+      console.error(
+        "Track URI or playlist URI is not a string:",
+        trackUri,
+        playlistUri
+      );
+      return;
+    }
+
+    play(trackUri, playlistUri);
     message.success("Playing track");
   };
 
   const handleFetchAudioFeatures = async (trackId) => {
     try {
-      const features = await fetchTrackAudioFeatures(trackId);
-      setAudioFeatures(features);
+      const audioFeaturesData = await fetchTrackAudioFeatures(trackId);
+      setAudioFeatures(audioFeaturesData);
       setIsModalVisible(true);
     } catch (err) {
       message.error("Failed to fetch audio features.");
@@ -118,6 +236,49 @@ const PlaylistDetail = () => {
   const handleModalClose = () => {
     setIsModalVisible(false);
     setAudioFeatures(null);
+  };
+
+  const handleReadBookClick = () => {
+    navigate(`/read/${playlist.bookDetail.id}`);
+  };
+
+  const renderAudioFeaturesChart = () => {
+    if (!audioFeatures) return null;
+
+    const data = {
+      labels: [
+        "Danceability",
+        "Energy",
+        "Speechiness",
+        "Acousticness",
+        "Instrumentalness",
+        "Liveness",
+        "Valence",
+      ],
+      datasets: [
+        {
+          label: "Audio Features",
+          data: [
+            audioFeatures.danceability,
+            audioFeatures.energy,
+            audioFeatures.speechiness,
+            audioFeatures.acousticness,
+            audioFeatures.instrumentalness,
+            audioFeatures.liveness,
+            audioFeatures.valence,
+          ],
+          backgroundColor: "rgba(29, 185, 84, 0.2)",
+          borderColor: "#1DB954",
+          borderWidth: 1,
+        },
+      ],
+    };
+
+    return <Radar data={data} />;
+  };
+
+  const toggleDrawer = () => {
+    setIsDrawerVisible(!isDrawerVisible);
   };
 
   if (loading) {
@@ -142,39 +303,28 @@ const PlaylistDetail = () => {
     return <div>No playlist data</div>;
   }
 
-  const renderAudioFeaturesChart = () => {
-    if (!audioFeatures) {
-      return null;
-    }
-
-    return (
-      <div>
-        {/* Render your audio features chart here */}
-        <pre>{JSON.stringify(audioFeatures, null, 2)}</pre>
-      </div>
-    );
-  };
-
   return (
     <>
       <Card style={{ margin: "20px", padding: "20px" }}>
-        <div style={{ display: "flex", alignItems: "flex-start" }}>
-          <div style={{ position: "relative", cursor: "pointer" }}>
-            <Avatar
-              src={playlist.images[0]?.url}
-              size={200}
-              shape="square"
-              style={{ transition: "transform 0.3s" }}
-              onClick={() =>
-                window.open(playlist.external_urls.spotify, "_blank")
-              }
-              onMouseOver={(e) =>
-                (e.currentTarget.style.transform = "scale(1.05)")
-              }
-              onMouseOut={(e) => (e.currentTarget.style.transform = "scale(1)")}
-            />
-          </div>
-          <div style={{ marginLeft: "20px", flex: 1 }}>
+        <div style={{ display: "flex", alignItems: "center" }}>
+          <Avatar
+            src={playlist.images[0]?.url}
+            size={200}
+            shape="square"
+            style={{
+              transition: "transform 0.3s",
+              cursor: "pointer",
+              marginRight: "20px",
+            }}
+            onClick={() =>
+              window.open(playlist.external_urls.spotify, "_blank")
+            }
+            onMouseOver={(e) =>
+              (e.currentTarget.style.transform = "scale(1.05)")
+            }
+            onMouseOut={(e) => (e.currentTarget.style.transform = "scale(1)")}
+          />
+          <div style={{ flex: 1 }}>
             <div
               style={{
                 display: "flex",
@@ -210,6 +360,16 @@ const PlaylistDetail = () => {
               <Text>{playlist.description}</Text>
             )}
           </div>
+          <Tooltip title="Read Book">
+            <Button
+              type="link"
+              icon={
+                <BookOutlined style={{ fontSize: "32px", color: "#1DB954" }} />
+              }
+              onClick={handleReadBookClick}
+              style={{ marginLeft: "auto", marginRight: "10px" }}
+            />
+          </Tooltip>
           <Tooltip title="Open in Spotify">
             <Button
               type="link"
@@ -220,67 +380,41 @@ const PlaylistDetail = () => {
               }
               href={playlist.external_urls.spotify}
               target="_blank"
-              style={{ marginLeft: "auto", marginRight: "10px" }}
-            />
-          </Tooltip>
-          <Tooltip title="View Playlist Stats">
-            <Button
-              type="link"
-              icon={<BarChartOutlined style={{ fontSize: "32px" }} />}
-              onClick={() => setIsModalVisible(true)}
-              style={{ marginLeft: "auto", marginRight: "10px" }}
+              style={{ marginLeft: "10px", marginRight: "10px" }}
             />
           </Tooltip>
         </div>
-        <List
-          itemLayout="horizontal"
-          dataSource={playlist.tracks.items}
-          renderItem={(item) => (
-            <List.Item
-              actions={[
-                <Button
-                  icon={<PlayCircleOutlined />}
-                  onClick={() => handlePlayTrack(item.track.uri)}
-                />,
-                <Button
-                  icon={
-                    favoriteTracks.has(item.track.id) ? (
-                      <HeartFilled style={{ color: "red" }} />
-                    ) : (
-                      <HeartOutlined />
-                    )
-                  }
-                  onClick={() => handleAddToFavorites(item.track.id)}
-                />,
-                <Button
-                  icon={<BarChartOutlined />}
-                  onClick={() => handleFetchAudioFeatures(item.track.id)}
-                />,
-              ]}
-            >
-              <List.Item.Meta
-                avatar={<Avatar src={item.track.album.images[0]?.url} />}
-                title={item.track.name}
-                description={`${item.track.artists
-                  .map((artist) => artist.name)
-                  .join(", ")} - ${item.track.album.name}`}
-              />
-              <div>
-                {new Date(item.track.duration_ms).toISOString().substr(14, 5)}
-              </div>
-            </List.Item>
-          )}
+        <Button
+          type="primary"
+          shape="circle"
+          icon={<BarChartOutlined />}
+          onClick={toggleDrawer}
+          style={{ position: "fixed", top: 80, right: 20, zIndex: 1000 }}
+        />
+        <TrackList
+          tracks={playlist.tracks.items}
+          favoriteTracks={favoriteTracks}
+          handlePlayTrack={handlePlayTrack}
+          handleAddToFavorites={handleAddToFavorites}
+          handleFetchAudioFeatures={handleFetchAudioFeatures}
         />
       </Card>
-
       <Modal
         title="Audio Features"
-        visible={isModalVisible}
+        open={isModalVisible}
         onCancel={handleModalClose}
         footer={null}
+        centered
       >
-        <PlaylistStats playlist={playlist} />
+        {renderAudioFeaturesChart()}
       </Modal>
+      <Statistics
+        generalStats={generalStats}
+        trackStats={trackStats}
+        genreStats={genreStats}
+        isDrawerVisible={isDrawerVisible}
+        toggleDrawer={toggleDrawer}
+      />
     </>
   );
 };

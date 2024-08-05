@@ -141,52 +141,71 @@ public class SpotifyService
         public string ErrorMessage { get; set; }
     }
 
-
-
-    public async Task<JArray> GetRecommendations(string userId, List<String> seedGenres,double ratio, double valence, double arousal, double dominance)
+    private List<List<string>> SplitSeeds(List<string> seeds, int maxSeedsPerRequest)
     {
-        var acccesToken = await _dbContext.Users.Where(u => u.Id == userId).Select(u => u.AccessToken).FirstOrDefaultAsync();
-        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", acccesToken);
+        var chunks = new List<List<string>>();
 
-        var genreQuery = string.Join(",", seedGenres);
-        var encodedGenreQuery = HttpUtility.UrlEncode(genreQuery);
+        for (int i = 0; i < seeds.Count; i += maxSeedsPerRequest)
+        {
+            chunks.Add(seeds.Skip(i).Take(maxSeedsPerRequest).ToList());
+        }
 
-        //loudness???maybe dupa dominance
-        //var danceability = arousal;
-        var mode = 0;
-        if (ratio > 1)
-            mode = 1;
+        return chunks;
+    }
+
+    public async Task<JArray> GetRecommendationsForWindow(string userId, List<string> seedGenres, List<string> seedArtists, double ratio, double valence, double arousal, double dominance, int[] popularityRange)
+    {
+        var accessToken = await _dbContext.Users.Where(u => u.Id == userId).Select(u => u.AccessToken).FirstOrDefaultAsync();
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        const int maxSeedsPerRequest = 5;
+        List<string> allSeeds = seedGenres.Concat(seedArtists).ToList();
+        Console.WriteLine($"All seeds: {string.Join(", ", allSeeds)}");
+        var seedChunks = SplitSeeds(allSeeds, maxSeedsPerRequest);
+        Console.WriteLine($"Seed chunks: {string.Join(", ", seedChunks.Select(c => string.Join(", ", c)))}");
+
+        var mode = ratio > 1 ? 1 : 0;
         var tempo = 60 + arousal * 40;
         var energy = dominance;
-        //valenta ramane = valence;
 
-        //formatam in string-uri cu 2 zecimale pt request
-        string formattedValence = valence.ToString("F2"); // F2 format specifier for 2 decimal places
+        string formattedValence = valence.ToString("F2");
         string formattedEnergy = energy.ToString("F2");
         string formattedTempo = tempo.ToString("F2");
-        //string formattedDanceability = danceability.ToString("F2");
 
-        ///transform dominance (from 0 to 1) to a range 
+        var popularityQuery = popularityRange != null ? $"&min_popularity={popularityRange[0]}&max_popularity={popularityRange[1]}" : "";
 
-        Console.WriteLine($"Getting recommendations for genres: {genreQuery}, valence: {formattedValence}, energy: {formattedEnergy}, tempo: {formattedTempo}, mode: {mode}");
+        JArray allRecommendations = new JArray();
 
-
-        var response = await _httpClient.GetAsync($"https://api.spotify.com/v1/recommendations?limit=20&seed_genres={encodedGenreQuery}&target_valence={formattedValence}&target_energy={formattedEnergy}&target_tempo={formattedTempo}&target_mode={mode}");
-           
-        if (response.IsSuccessStatusCode)
+        foreach (var seedChunk in seedChunks)
         {
-               
-            var jsonContent = await response.Content.ReadAsStringAsync();
-            var recommendations = JObject.Parse(jsonContent)["tracks"] as JArray;
-            return recommendations;
-        }
-        else
-        {
-            Console.WriteLine($"Failed to fetch recommendations. Status Code: {response.StatusCode}");
-            return null;
+            var genres = seedChunk.Where(s => seedGenres.Contains(s)).ToList();
+            var artists = seedChunk.Where(s => seedArtists.Contains(s)).ToList();
+
+            var genreQuery = genres.Count > 0 ? $"&seed_genres={HttpUtility.UrlEncode(string.Join(",", genres))}" : "";
+            var artistQuery = artists.Count > 0 ? $"&seed_artists={HttpUtility.UrlEncode(string.Join(",", artists))}" : "";
+
+            var response = await _httpClient.GetAsync($"https://api.spotify.com/v1/recommendations?limit=20{genreQuery}{artistQuery}&target_valence={formattedValence}&target_energy={formattedEnergy}&target_tempo={formattedTempo}&target_mode={mode}{popularityQuery}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                var jsonContent = await response.Content.ReadAsStringAsync();
+                var recommendations = JObject.Parse(jsonContent)["tracks"] as JArray;
+                if (recommendations != null)
+                {
+                    allRecommendations.Merge(recommendations);
+                    Console.WriteLine($"Fetched {allRecommendations.Count} recommendations");
+                }
+            }
+            else
+            {
+                Console.WriteLine($"Failed to fetch recommendations. Status Code: {response.StatusCode}");
+            }
         }
 
+        return allRecommendations;
     }
+
+
 
     public async Task<string> CreatePlaylist(string userId, string PlaylistName, string playlistDescription)
     {
@@ -201,8 +220,7 @@ public class SpotifyService
 
         var content = new StringContent(JsonConvert.SerializeObject(requestBody), Encoding.UTF8, "application/json");
 
-      
-
+     
         var response = await _httpClient.PostAsync($"https://api.spotify.com/v1/users/{userId}/playlists", content);
         if (response.IsSuccessStatusCode)
         {
@@ -212,7 +230,9 @@ public class SpotifyService
         }
         else
         {
+            var responseContent = await response.Content.ReadAsStringAsync();
             Console.WriteLine($"Failed to create playlist. Status Code: {response.StatusCode}");
+            Console.WriteLine($"Response Content: {responseContent}");
             return null;
         }
     }
@@ -261,5 +281,72 @@ public class SpotifyService
 
         return new List<Track>();
     }
+
+
+    public async Task<(List<string> topGenres, List<string> topArtists, List<string> topTracks)> GetTopStats(string userId)
+    {
+        var accessToken = await _dbContext.Users.Where(u => u.Id == userId).Select(u => u.AccessToken).FirstOrDefaultAsync();
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        var topGenres = new List<string>();
+        var topArtists = new List<string>();
+        var topTracks = new List<string>();
+
+        // Fetch top artists
+        var artistsResponse = await _httpClient.GetAsync("https://api.spotify.com/v1/me/top/artists?limit=10");
+        if (artistsResponse.IsSuccessStatusCode)
+        {
+            var artistsJson = await artistsResponse.Content.ReadAsStringAsync();
+            var artistsData = JObject.Parse(artistsJson);
+            var artists = artistsData["items"] as JArray;
+
+            foreach (var artist in artists)
+            {
+                var artistGenres = artist["genres"]?.ToObject<List<string>>() ?? new List<string>();
+                topArtists.Add(artist["name"]?.ToString());
+                topGenres.AddRange(artistGenres);
+            }
+        }
+        else
+        {
+            Console.WriteLine($"Failed to fetch top artists. Status Code: {artistsResponse.StatusCode}");
+        }
+
+        // Fetch top tracks
+        var tracksResponse = await _httpClient.GetAsync("https://api.spotify.com/v1/me/top/tracks?limit=10");
+        if (tracksResponse.IsSuccessStatusCode)
+        {
+            var tracksJson = await tracksResponse.Content.ReadAsStringAsync();
+            var tracksData = JObject.Parse(tracksJson);
+            var tracks = tracksData["items"] as JArray;
+
+            foreach (var track in tracks)
+            {
+                var trackArtists = track["artists"]?.Select(artist => artist["name"].ToString()).ToList() ?? new List<string>();
+                topTracks.AddRange(trackArtists);
+            }
+        }
+        else
+        {
+            Console.WriteLine($"Failed to fetch top tracks. Status Code: {tracksResponse.StatusCode}");
+        }
+
+        // Determine the most common genre
+        var genreCount = topGenres.GroupBy(g => g).ToDictionary(g => g.Key, g => g.Count());
+        var mostCommonGenre = genreCount.OrderByDescending(g => g.Value).FirstOrDefault().Key;
+
+        // If no genre data available, fallback to a random artist or genre
+        if (string.IsNullOrEmpty(mostCommonGenre))
+        {
+            mostCommonGenre = topGenres.FirstOrDefault();
+        }
+
+        // Optionally, pick a random artist from the top artists
+        var random = new Random();
+        var randomArtist = topArtists.OrderBy(a => random.Next()).FirstOrDefault();
+
+        return (topGenres.Distinct().ToList(), topArtists, topTracks);
+    }
+
 
 }

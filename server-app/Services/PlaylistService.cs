@@ -104,12 +104,12 @@ namespace server_app.Services
             }
 
             var sortedGenres = genreFrequency.OrderByDescending(pair => pair.Value).Select(pair => pair.Key).ToList();
-            var topGenres = sortedGenres.Take(2).ToList();
+            var topGenres = sortedGenres.Take(3).ToList();
             genreSet.UnionWith(topGenres);
             return genreSet.ToList();
         }
 
-       
+
 
 
 
@@ -124,12 +124,10 @@ namespace server_app.Services
                 throw new Exception("User or book not found");
             }
 
-
             SentimentData sentimentData;
 
-            // verifcam daca avem deja datele de sentiment pentru cartea respectiva
-            // oricum textul nu se schimba, deci nu e nevoie sa le calculam de fiecare data
-            if ((!string.IsNullOrEmpty(book.SentimentData)) && (book.SentimentData != "{}"))
+            // Check if sentiment data already exists for the book
+            if (!string.IsNullOrEmpty(book.SentimentData) && book.SentimentData != "{}")
             {
                 sentimentData = JsonConvert.DeserializeObject<SentimentData>(book.SentimentData);
                 Console.WriteLine("Sentiment data fetched from database");
@@ -144,62 +142,113 @@ namespace server_app.Services
                 Console.WriteLine(sentimentData);
             }
 
-
-
-            //concat the individual subjects and bookshelves into one list
             var subjects = JsonConvert.DeserializeObject<List<string>>(book.Subjects) ?? new List<string>();
             var bookshelves = JsonConvert.DeserializeObject<List<string>>(book.Bookshelves) ?? new List<string>();
 
             // Combine subjects and bookshelves
             subjects.AddRange(bookshelves);
 
-            List<String> seedGenres = GetGenresFromEmotions(sentimentData.Emotions, subjects);
+            List<string> seedGenres = GetGenresFromEmotions(sentimentData.Emotions, subjects);
+            List<string> seedArtists = new List<string>();
 
-            if (request.SoundtrackType == "Classical")
+            if (request.SoundtrackType == "classical")
             {
                 seedGenres = new List<string> { "classical" };
             }
 
-            // checking if the user has a popularity preference, we will add this to the request
+            Console.WriteLine($"Seed genres: {string.Join(", ", seedGenres)}");
+            Console.WriteLine($"Request info: {JsonConvert.SerializeObject(request)}");
 
-            // checking if there are decades preferences, we will filter the recommendations at the end based on this
+            string usedPreference = "None";
 
-            //checking if they want to include their spotify prefereneces -> we will extract a song from their top stats and use it as a seed
+            if (request.UseSpotifyPreferences)
+            {
+                var (topGenres, topArtists, topTracks) = await _spotifyService.GetTopStats(userId);
+                // Use most common genre from top genres
+                var mostCommonGenre = topGenres.GroupBy(g => g).OrderByDescending(g => g.Count()).FirstOrDefault()?.Key;
+                if (!string.IsNullOrEmpty(mostCommonGenre))
+                {
+                    seedGenres.Add(mostCommonGenre);
+                    Console.WriteLine($"Most common genre: {mostCommonGenre}");
+                    usedPreference = mostCommonGenre;
+                }
 
-            //momentan doar le afisam in consola sa stiu ca exista 
-            Console.WriteLine(request.PopularityRange);
-            Console.WriteLine(request.Decades);
-            Console.WriteLine(request.UseSpotifyPreferences);
-
+                // Add a random artist to the seeds
+                if (topArtists.Any())
+                {
+                    var randomArtist = topArtists.OrderBy(a => Guid.NewGuid()).FirstOrDefault();
+                    if (!string.IsNullOrEmpty(randomArtist))
+                    {
+                        seedArtists.Add(randomArtist);
+                        Console.WriteLine($"Random artist: {randomArtist}");
+                        usedPreference += ", " + randomArtist;
+                    }
+                }
+            }
 
             Console.WriteLine(seedGenres);
+            Console.WriteLine(seedArtists);
 
             List<string> allTrackUris = new List<string>();
+            bool timePeriodTooRestrictive = false;
+
+
 
             for (int i = 0; i < sentimentData.VAD.windowed_valence.Count; i++)
             {
                 double windowValence = sentimentData.VAD.windowed_valence[i];
                 double windowArousal = sentimentData.VAD.windowed_arousal[i];
                 double windowDominance = sentimentData.VAD.mean_dominance;
-                if(i > sentimentData.VAD.windowed_domninance.Count)
+                if (i < sentimentData.VAD.windowed_domninance.Count)
+                {
                     windowDominance = sentimentData.VAD.windowed_domninance[i];
+                }
                 double ratio = sentimentData.VAD.ratio;
                 Console.WriteLine($"Window {i}: Valence {windowValence}, Arousal {windowArousal}");
-                //string seedGenre = (windowValence > 0.7) ? "pop" : (windowValence < 0.3) ? "blues" : "classical";
+                var recommendations = await _spotifyService.GetRecommendationsForWindow(
+                                            userId,
+                                            seedGenres,
+                                            seedArtists,
+                                            ratio,
+                                            windowValence,
+                                            windowArousal,
+                                            windowDominance,
+                                            request.PopularityRange?.ToArray()
+                                        );
                 
-                var recommendations = await _spotifyService.GetRecommendations(userId, seedGenres, ratio, windowValence, windowArousal, windowDominance);
-                if (recommendations != null)
-                {
-                    Console.WriteLine($"Recommendations for window {i}:");
-                    allTrackUris.AddRange(recommendations.Select(track => track["uri"].ToString()).Take(15));
-                    Console.WriteLine(string.Join(", ", allTrackUris));
+
+                    if (recommendations != null)
+                    {
+                        Console.WriteLine($"Recommendations for window {i}:");
+                        var (filteredRecommendations, wasFiltered) = FilterRecommendationsByDecades(recommendations, request.Decades);
+                        allTrackUris.AddRange(filteredRecommendations.Select(track => track["uri"].ToString()).Take(15));
+                        timePeriodTooRestrictive = timePeriodTooRestrictive || wasFiltered;
+                        Console.WriteLine(string.Join(", ", allTrackUris));
                 }
+                }
+            
+
+            string popularityRangeDescription = request.PopularityRange != null ? string.Join("-", request.PopularityRange) : "Not specified";
+
+            var trackUris = allTrackUris.Distinct().Take(100).ToList();
+            Console.WriteLine($"Total tracks: {trackUris.Count}");
+            string description = 
+                                 $"Emotions: {string.Join(", ", sentimentData.Emotions)}. " +
+                                 $"Genres: {string.Join(", ", seedGenres)}. " +
+                                 $"VAD: {sentimentData.VAD.mean_valence:F2}, {sentimentData.VAD.mean_arousal:F2}, {sentimentData.VAD.mean_dominance:F2}";
+                              
+
+            if(request.UseSpotifyPreferences)
+            {
+                description += $"Used Spotify preferences: {usedPreference}.";
             }
 
-            //var recommendations = await _spotifyService.GetRecommendations(userId, seedGenre);
-           var trackUris = allTrackUris.Distinct().Take(100).ToList();
-            var Desription = $"A playlist based on the book {book.Title}";
-            var playlistId = await _spotifyService.CreatePlaylist(user.SpotifyId, book.Title, Desription);
+            if (request.Decades != null && timePeriodTooRestrictive)
+            {
+                description += "Note: The specified time period was too restrictive, so some tracks may not match the requested decades.";
+            }
+
+            var playlistId = await _spotifyService.CreatePlaylist(user.SpotifyId, book.Title, description);
             await _spotifyService.AddTracksToPlaylist(playlistId, trackUris, userId);
 
             var playlist = new Playlist
@@ -207,7 +256,7 @@ namespace server_app.Services
                 Id = playlistId,
                 SpotifyUrl = $"https://open.spotify.com/playlist/{playlistId}",
                 Name = book.Title,
-                Description = $"A playlist based on the book {book.Title}",
+                Description = description,
                 Book = book,
                 User = user
             };
@@ -220,6 +269,36 @@ namespace server_app.Services
 
 
 
+        private (List<JToken> filteredRecommendations, bool wasFiltered) FilterRecommendationsByDecades(JArray recommendations, List<string> decades)
+        {
+            if (decades == null || decades.Count == 0)
+            {
+                return (recommendations.ToList(), false);
+            }
 
+            var filteredRecommendations = new List<JToken>();
+            var decadeStartYears = decades.Select(d => int.Parse(d.Substring(0, 4))).ToList();
+
+            Console.WriteLine($"Filtering recommendations by decades: {string.Join(", ", decades)}");
+
+            foreach (var track in recommendations)
+            {
+                var releaseDate = track["album"]["release_date"].ToString();
+                var releaseYear = int.Parse(releaseDate.Split('-')[0]);
+
+                if (decadeStartYears.Any(startYear => releaseYear >= startYear && releaseYear < startYear + 10))
+                {
+                    filteredRecommendations.Add(track);
+                }
+                else
+                {
+                    Console.WriteLine($"Track did not pass the filter, it was produced in {releaseYear}");
+                }
+            }
+
+            bool wasFiltered = filteredRecommendations.Count == 0;
+            // Fallback to unfiltered recommendations if the filtered list is empty
+            return (wasFiltered ? recommendations.ToList() : filteredRecommendations, wasFiltered);
+        }
     }
 }

@@ -291,6 +291,35 @@ namespace server_app.Controllers
             return Ok(playlists);
 
 
-        }   
+        }
+
+        [HttpGet("community")]
+        public async Task<IActionResult> GetCommunityPlaylists()
+        {
+            var playlists = await _dbContext.Playlists
+                                            .Include(p => p.Book)
+                                            .ToListAsync();
+
+            if (playlists == null || !playlists.Any())
+            {
+                return NotFound("No playlists found");
+            }
+
+            var playlistDtos = playlists.Select(p => new PlaylistDto
+            {
+                SpotifyPlaylistId = p.Id,
+                Name = p.Name,
+                Description = p.Description,
+                SpotifyUrl = p.SpotifyUrl,
+                Book = new GutenbergBook
+                {
+                    Id = p.Book.GutenbergId,
+                    Title = p.Book.Title,
+                }
+            }).ToList();
+
+            return Ok(playlistDtos);
+        }
+
     }
 }

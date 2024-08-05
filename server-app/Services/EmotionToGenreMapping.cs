@@ -28,7 +28,7 @@
         {"frustration", "hardcore"},
         {"gratitude", "soul"},
         {"greed", "trap"},
-        {"grief", "sad"},
+        {"grief", "blues"},
         {"guilt", "metalcore"},
         {"indifference", "minimal-techno"},
         {"joy", "dance"},

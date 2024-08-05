@@ -107,7 +107,7 @@ const PlaylistPreferencesModal = ({ visible, onCancel, onSubmit, loading }) => {
           valuePropName="checked"
           style={{ marginBottom: "2rem" }}
         >
-          <Checkbox>Use My Spotify Data</Checkbox>
+          <Checkbox>I want the playlist to include my music taste.</Checkbox>
         </Form.Item>
       </Form>
     </Modal>

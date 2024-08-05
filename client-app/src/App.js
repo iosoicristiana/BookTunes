@@ -17,6 +17,7 @@ import NotFound from "./components/NotFound";
 import PlaylistDetail from "./spotifyComponents/PlaylistDetail";
 import { Book } from "epubjs";
 import MyPlaylists from "./spotifyComponents/MyPlaylists";
+import CommunityPlaylists from "./spotifyComponents/CommunityPlaylists";
 
 const AppContent = () => {
   const { themeConfig } = useTheme();
@@ -63,6 +64,15 @@ const AppContent = () => {
                     </ProtectedRoute>
                   }
                 />
+                <Route
+                  path="/communityplaylists"
+                  element={
+                    <ProtectedRoute>
+                      <CommunityPlaylists />
+                    </ProtectedRoute>
+                  }
+                />
+
                 <Route path="/playlist/:id" element={<PlaylistDetail />} />
                 <Route
                   path="/read/:id"

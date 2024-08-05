@@ -103,4 +103,73 @@ export const fetchTrackAudioFeatures = async (trackId) => {
     return {};
   }
 };
+export const togglePlaylistPrivacy = async (playlistId, isPublic) => {
+  try {
+    const response = await fetch(
+      `https://api.spotify.com/v1/playlists/${playlistId}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("spotifyAccessToken")}`,
+        },
+        body: JSON.stringify({
+          public: isPublic,
+        }),
+      }
+    );
 
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error.message);
+    }
+  } catch (error) {
+    console.error("Error updating playlist privacy:", error);
+    throw error;
+  }
+};
+
+export const fetchMultipleTracksAudioFeatures = async (trackIds) => {
+  const accessToken = localStorage.getItem("spotifyAccessToken");
+  if (!accessToken) {
+    throw new Error("Access token not available");
+  }
+
+  try {
+    const response = await fetch(
+      `https://api.spotify.com/v1/audio-features?ids=${trackIds.join(",")}`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch audio features: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.audio_features || [];
+  } catch (error) {
+    console.error("Error fetching audio features:", error);
+    return [];
+  }
+};
+
+export const fetchArtistDetails = async (artistId) => {
+  const accessToken = localStorage.getItem("spotifyAccessToken");
+  const response = await fetch(
+    `https://api.spotify.com/v1/artists/${artistId}`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    }
+  );
+  if (!response.ok) {
+    throw new Error(`Failed to fetch artist details for ID ${artistId}`);
+  }
+  const data = await response.json();
+  return data;
+};

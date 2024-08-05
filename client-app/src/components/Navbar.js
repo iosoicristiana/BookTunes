@@ -51,7 +51,7 @@ const Navbar = () => {
       icon: <GlobalOutlined />,
       label: "Community Playlists",
       style: { color: styles.Menu.itemColor },
-      onClick: () => navigate("/community-playlists"), // Navigate to Community Playlists
+      onClick: () => navigate("/communityplaylists"), // Navigate to Community Playlists
     },
     {
       key: "5",

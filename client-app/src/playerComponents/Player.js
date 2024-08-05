@@ -6,7 +6,6 @@ import {
   PauseCircleOutlined,
   StepForwardOutlined,
   StepBackwardOutlined,
-  CloseOutlined,
 } from "@ant-design/icons";
 
 const { Footer } = Layout;
@@ -29,7 +28,6 @@ const Player = () => {
     position,
     duration,
     seek,
-    setIsActive,
   } = usePlayer();
 
   if (!currentTrack) {
@@ -40,24 +38,20 @@ const Player = () => {
     seek(newValue);
   };
 
-  const handleClose = () => {
-    setIsActive(false);
-  };
-
   return (
     <Footer
       style={{
         backgroundColor: "#004F00",
         color: "white",
-        padding: "5px 10px",
+        padding: "10px 20px",
         position: "fixed",
         bottom: 0,
         width: "100%",
         zIndex: 1000,
       }}
     >
-      <Row align="middle" style={{ width: "100%" }}>
-        <Col span={6} style={{ display: "flex", alignItems: "center" }}>
+      <Row align="middle" justify="space-between" style={{ width: "100%" }}>
+        <Col style={{ display: "flex", alignItems: "center" }}>
           <Avatar src={currentTrack.albumImage} size={50} />
           <div style={{ marginLeft: "10px" }}>
             <Title
@@ -71,7 +65,7 @@ const Player = () => {
             </Text>
           </div>
         </Col>
-        <Col span={10} style={{ textAlign: "center" }}>
+        <Col>
           <Button
             type="link"
             icon={
@@ -98,32 +92,21 @@ const Player = () => {
             onClick={skipToNext}
           />
         </Col>
-        <Col span={4} style={{ textAlign: "right" }}>
-          <Text style={{ color: "white", fontSize: "14px" }}>
+        <Col style={{ display: "flex", alignItems: "center" }}>
+          <Text
+            style={{ color: "white", fontSize: "14px", marginRight: "10px" }}
+          >
             {formatDuration(position)} / {formatDuration(duration)}
           </Text>
-        </Col>
-        <Col span={2} style={{ textAlign: "right" }}>
-          <Button
-            type="link"
-            icon={<CloseOutlined style={{ color: "white", fontSize: 20 }} />}
-            onClick={handleClose}
+          <Slider
+            value={position}
+            onChange={handleSeekChange}
+            min={0}
+            max={duration}
+            tipFormatter={formatDuration}
+            style={{ width: "600px" }}
           />
         </Col>
-      </Row>
-      <Row
-        align="middle"
-        justify="center"
-        style={{ width: "100%", marginTop: "0px" }}
-      >
-        <Slider
-          value={position}
-          onChange={handleSeekChange}
-          min={0}
-          max={duration}
-          tipFormatter={formatDuration}
-          style={{ width: "90%" }}
-        />
       </Row>
     </Footer>
   );
