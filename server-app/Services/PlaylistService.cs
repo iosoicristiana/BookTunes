@@ -30,11 +30,11 @@ namespace server_app.Services
             using (var httpClient = new HttpClient())
             {
 
-                httpClient.Timeout = TimeSpan.FromMinutes(7);
+                httpClient.Timeout = TimeSpan.FromMinutes(20);
 
                 try
                 {
-                    var response = await httpClient.PostAsJsonAsync("https://9780-34-126-108-236.ngrok-free.app/analyze", new { url = textUrl });
+                    var response = await httpClient.PostAsJsonAsync("https://61a6-34-125-137-56.ngrok-free.app/analyze", new { url = textUrl });
                     response.EnsureSuccessStatusCode();
 
                     var jsonContent = await response.Content.ReadAsStringAsync();
@@ -59,6 +59,7 @@ namespace server_app.Services
                 catch (HttpRequestException e)
                 {
                     Console.WriteLine($"Error fetching sentiment scores: {e.Message}");
+                    Console.WriteLine(e.StackTrace);
                     throw;
                 }
                 catch (TaskCanceledException ex)
@@ -109,9 +110,12 @@ namespace server_app.Services
             return genreSet.ToList();
         }
 
-
-
-
+        public static double[] MinMaxNormalize(double[] values)
+        {
+            double minVal = values.Min();
+            double maxVal = values.Max();
+            return values.Select(x => (maxVal - minVal) == 0 ? 0 : (x - minVal) / (maxVal - minVal)).ToArray();
+        }
 
 
         public async Task<Playlist> GeneratePlaylistForBook(string userId, int bookId, PlaylistGenerationRequest request)
@@ -148,7 +152,7 @@ namespace server_app.Services
             // Combine subjects and bookshelves
             subjects.AddRange(bookshelves);
 
-            List<string> seedGenres = GetGenresFromEmotions(sentimentData.Emotions, subjects);
+            List<string> seedGenres = GetGenresFromEmotions(sentimentData.Emotions, subjects); ///from emotions AND subjects
             List<string> seedArtists = new List<string>();
 
             if (request.SoundtrackType == "classical")
@@ -192,17 +196,22 @@ namespace server_app.Services
             List<string> allTrackUris = new List<string>();
             bool timePeriodTooRestrictive = false;
 
+            // normalize VAD values
+            double[] normalizedValence = MinMaxNormalize(sentimentData.VAD.windowed_valence.ToArray());
+            double[] normalizedArousal = MinMaxNormalize(sentimentData.VAD.windowed_arousal.ToArray());
+            double[] normalizedDominance = MinMaxNormalize(sentimentData.VAD.windowed_domninance.ToArray());
 
 
             for (int i = 0; i < sentimentData.VAD.windowed_valence.Count; i++)
             {
-                double windowValence = sentimentData.VAD.windowed_valence[i];
-                double windowArousal = sentimentData.VAD.windowed_arousal[i];
-                double windowDominance = sentimentData.VAD.mean_dominance;
-                if (i < sentimentData.VAD.windowed_domninance.Count)
-                {
-                    windowDominance = sentimentData.VAD.windowed_domninance[i];
-                }
+                double windowValence = normalizedValence[i];
+                double windowArousal = i < normalizedArousal.Length ? normalizedArousal[i] : sentimentData.VAD.mean_arousal;
+                double windowDominance = i < normalizedDominance.Length ? normalizedDominance[i] : sentimentData.VAD.mean_dominance;
+
+
+                Console.WriteLine($"Window {i}: Normalized Valence {normalizedValence}, Normalized Arousal {normalizedArousal}, Normalized Dominance {normalizedDominance}");   
+
+
                 double ratio = sentimentData.VAD.ratio;
                 Console.WriteLine($"Window {i}: Valence {windowValence}, Arousal {windowArousal}");
                 var recommendations = await _spotifyService.GetRecommendationsForWindow(

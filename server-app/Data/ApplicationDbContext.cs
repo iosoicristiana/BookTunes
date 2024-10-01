@@ -11,7 +11,6 @@ namespace server_app.Data
         public DbSet<User> Users { get; set; }
         public DbSet<Playlist> Playlists { get; set; }
         public DbSet<Book> Books { get; set; }
-
         public DbSet<UserBook> UserBooks { get; set; }
 
 

@@ -49,7 +49,7 @@ const Home = () => {
               fontWeight: "bold",
             }}
           >
-            Welcome to Bookify
+            Welcome to BookTunes
           </Title>
           <Paragraph style={{ color: token.colorText, fontSize: "15px" }}>
             Discover and save your favorite fiction books. Generate playlists

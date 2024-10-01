@@ -453,9 +453,7 @@ export const usePlayer = () => {
 
 export const PlayerProvider = ({ children }) => {
   const [player, setPlayer] = useState(null);
-  const [token, setToken] = useState(
-    localStorage.getItem("spotifyAccessToken")
-  );
+  const [token] = useState(localStorage.getItem("spotifyAccessToken"));
   const [currentTrack, setCurrentTrack] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [position, setPosition] = useState(0);

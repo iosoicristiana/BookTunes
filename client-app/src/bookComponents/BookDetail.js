@@ -319,7 +319,9 @@ const BookDetails = () => {
               key="view"
               onClick={() => {
                 setSuccessModalVisible(false);
-                navigate(`/playlist/${generatedPlaylist.id}`);
+                navigate(`/playlist/${generatedPlaylist.id}`, {
+                  state: { bookId: bookDetail.id },
+                });
               }}
             >
               View Playlist

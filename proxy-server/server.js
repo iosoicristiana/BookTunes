@@ -17,7 +17,7 @@ app.get("/fetch-epub", async (req, res) => {
     if (!response.ok) {
       return res.status(response.status).send(response.statusText);
     }
-    const data = await response.buffer(); // use .buffer() for binary data
+    const data = await response.buffer();
     res.set({
       "Content-Type": "application/epub+zip",
       "Content-Disposition": `attachment; filename="${bookId}.epub"`,

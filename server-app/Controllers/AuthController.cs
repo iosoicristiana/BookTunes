@@ -149,12 +149,12 @@ namespace server_app.Controllers
         }
 
 
-        [HttpPost("test")]
-        public IActionResult SimpleTest([FromBody] CodeRequest spotifyCode)
-        {
-            Console.WriteLine($"Code Received: {spotifyCode?.Code}");
-            return Ok("Request Received");
-        }
+        //[HttpPost("test")]
+        //public IActionResult SimpleTest([FromBody] CodeRequest spotifyCode)
+        //{
+        //    Console.WriteLine($"Code Received: {spotifyCode?.Code}");
+        //    return Ok("Request Received");
+        //}
 
 
 

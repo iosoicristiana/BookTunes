@@ -7,6 +7,7 @@ import React, {
 } from "react";
 import {
   fetchBooksByPage,
+  fetchBooksByUrl,
   fetchBookDetail as fetchBookDetailAPI,
 } from "./gutendexAPI";
 
@@ -25,55 +26,75 @@ export const BookProvider = ({ children }) => {
   const [favorites, setFavorites] = useState([]);
   const [bookDetail, setBookDetail] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [isFavoritesLoading, setIsFavoritesLoading] = useState(false); // Separate loading state for favorites
+  const [isFavoritesLoading, setIsFavoritesLoading] = useState(false);
   const [error, setError] = useState(null);
   const [totalBooks, setTotalBooks] = useState(0);
   const [currentPage, setCurrentPage] = useState(
     parseInt(localStorage.getItem("currentPage")) || 1
   );
+  //const booksPerPage = 32;
+  const [nextPageUrl, setNextPageUrl] = useState(null); // URL for the next page
+  const [prevPageUrl, setPrevPageUrl] = useState(null); // URL for the previous pag
 
-  // Define a cache object
   const cache = {};
+  const fetchBooks = useCallback(async (params = {}) => {
+    setIsLoading(true);
+    setError(null);
 
-  const fetchBooks = useCallback(
-    async (params = {}) => {
-      setIsLoading(true);
-      setError(null);
+    try {
+      // Fetch books using the provided parameters
+      const data = await fetchBooksByPage(params);
 
-      params.language = "en";
-      params.topic = "fiction";
-      params.page = currentPage;
+      setBooks(data.results);
+      setTotalBooks(data.count);
+      setNextPageUrl(data.next); // Save the next page URL
+      setPrevPageUrl(data.previous); // Save the previous page URL
+    } catch (error) {
+      console.error("Error fetching books:", error);
+      setError(error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
-      try {
-        const cacheKey = JSON.stringify(params);
-        if (cache[cacheKey]) {
-          // Use cached data if available
-          console.log("Using cached data for books");
-          setBooks(cache[cacheKey].results);
-          setTotalBooks(cache[cacheKey].count);
-        } else {
-          console.log("Fetching books from API");
-          // Fetch data from API and update cache
-          const data = await fetchBooksByPage(params);
-          setBooks(data.results);
-          setTotalBooks(data.count);
-          cache[cacheKey] = data; // Cache the results
-        }
-      } catch (error) {
-        console.error("Error fetching books:", error);
-        setError(error);
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [currentPage]
-  );
+  const fetchBooksUsingUrl = useCallback(async (url) => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // Fetch books using the direct URL
+      const data = await fetchBooksByUrl(url);
+
+      setBooks(data.results);
+      setTotalBooks(data.count);
+      setNextPageUrl(data.next); // Save the next page URL
+      setPrevPageUrl(data.previous); // Save the previous page URL
+    } catch (error) {
+      console.error("Error fetching books:", error);
+      setError(error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const goToNextPage = () => {
+    if (nextPageUrl) {
+      setCurrentPage((prev) => prev + 1);
+      fetchBooksUsingUrl(nextPageUrl);
+    }
+  };
+
+  const goToPrevPage = () => {
+    if (prevPageUrl) {
+      setCurrentPage((prev) => prev - 1);
+      fetchBooksUsingUrl(prevPageUrl);
+    }
+  };
 
   const fetchFavorites = useCallback(async () => {
     setIsFavoritesLoading(true);
     setError(null);
     try {
-      console.log("Fetching favorites from backend");
       const response = await fetch("https://localhost:7252/api/Book/getBooks", {
         method: "GET",
         headers: {
@@ -84,17 +105,13 @@ export const BookProvider = ({ children }) => {
       if (response.ok) {
         const data = await response.json();
         const favoriteBooks = data.$values || [];
-        console.log("Favorites:", favoriteBooks);
         setFavorites(favoriteBooks);
-
-        // Save to localStorage
         localStorage.setItem("favorites", JSON.stringify(favoriteBooks));
       } else {
         throw new Error("Failed to fetch favorites");
       }
     } catch (error) {
       console.error("Error fetching favorites:", error);
-      //setError(error);
       setFavorites([]);
     } finally {
       setIsFavoritesLoading(false);
@@ -117,7 +134,6 @@ export const BookProvider = ({ children }) => {
 
   const addToFavorites = async (book) => {
     try {
-      console.log("Adding book to favorites");
       const response = await fetch("https://localhost:7252/api/Book/add", {
         method: "POST",
         headers: {
@@ -129,8 +145,6 @@ export const BookProvider = ({ children }) => {
 
       if (response.ok) {
         setFavorites((prevFavorites) => [...prevFavorites, book]);
-
-        // Save to localStorage
         localStorage.setItem("favorites", JSON.stringify(favorites));
       } else {
         console.error("Failed to add to favorites");
@@ -142,8 +156,6 @@ export const BookProvider = ({ children }) => {
 
   const removeFromFavorites = async (bookId) => {
     try {
-      console.log("Removing book from favorites");
-      console.log("Book ID:", bookId);
       const response = await fetch(
         `https://localhost:7252/api/Book/remove/${bookId}`,
         {
@@ -160,8 +172,6 @@ export const BookProvider = ({ children }) => {
         setFavorites((prevFavorites) =>
           prevFavorites.filter((book) => book.id !== bookId)
         );
-
-        // Save to localStorage
         localStorage.setItem("favorites", JSON.stringify(favorites));
       } else {
         console.error("Failed to remove from favorites");
@@ -182,7 +192,6 @@ export const BookProvider = ({ children }) => {
   }, [fetchBooks]);
 
   useEffect(() => {
-    // Save current page to localStorage
     localStorage.setItem("currentPage", currentPage);
   }, [currentPage]);
 

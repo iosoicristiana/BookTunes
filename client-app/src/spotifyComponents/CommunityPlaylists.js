@@ -34,7 +34,7 @@ const CommunityPlaylists = () => {
 
         const data = await response.json();
         const playlistsData = data.$values;
-        console.log(playlistsData);
+        console.log("data", playlistsData);
 
         const playlistDetails = await Promise.all(
           playlistsData.map(async (playlist) => {
@@ -80,7 +80,9 @@ const CommunityPlaylists = () => {
           );
         }
 
-        return await response.json();
+        const data = await response.json();
+
+        return data;
       } catch (error) {
         console.error("Error fetching Spotify playlist:", error);
         return {};
@@ -144,7 +146,7 @@ const CommunityPlaylists = () => {
                         <br />
                         <Text>{playlist.description}</Text>
                         <br />
-                        <Link to={`/book/${playlist.book?.gutenbergId}`}>
+                        <Link to={`/book/${playlist.book?.id}`}>
                           <Button
                             type="link"
                             icon={<BookOutlined />}

@@ -12,7 +12,7 @@ const Statistics = ({
   toggleDrawer,
 }) => {
   const renderGeneralStatsChart = () => {
-    if (!generalStats) return null;
+    if (!generalStats || Object.keys(generalStats).length === 0) return null;
 
     const data = {
       labels: [

@@ -1,11 +1,16 @@
 const API_BASE_URL = "https://gutendex.com/books";
 
-const fetchBooksByPage = async (params = {}) => {
-  const query = new URLSearchParams(params).toString();
-  const response = await fetch(`${API_BASE_URL}?${query}`);
+// Fetch books by page with the option to pass a direct URL for pagination
+const fetchBooksByPage = async (params = {}, url = null) => {
+  let requestUrl =
+    url || `${API_BASE_URL}?${new URLSearchParams(params).toString()}`;
+
+  const response = await fetch(requestUrl);
+
   if (!response.ok) {
     throw new Error(`Error fetching books: ${response.statusText}`);
   }
+
   return await response.json();
 };
 
@@ -26,4 +31,21 @@ const fetchBookDetail = async (id) => {
   }
   return await response.json();
 };
-export { fetchBooksByPage, searchBooksByPage, fetchBookDetail };
+
+// Fetch books directly by using the next or previous URL
+const fetchBooksByUrl = async (url) => {
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    throw new Error(`Error fetching books: ${response.statusText}`);
+  }
+
+  return await response.json();
+};
+
+export {
+  fetchBooksByPage,
+  searchBooksByPage,
+  fetchBookDetail,
+  fetchBooksByUrl,
+};

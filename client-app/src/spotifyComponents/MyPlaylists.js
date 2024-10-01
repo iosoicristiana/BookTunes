@@ -127,7 +127,11 @@ const MyPlaylists = () => {
             >
               <Card.Meta
                 title={
-                  <Link to={`/playlist/${playlist.spotifyPlaylistId}`}>
+                  <Link
+                    to={{
+                      pathname: `/playlist/${playlist.spotifyPlaylistId}`,
+                    }}
+                  >
                     {playlist.name}
                   </Link>
                 }

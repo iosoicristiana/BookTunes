@@ -35,6 +35,7 @@ import { Radar } from "react-chartjs-2";
 import { Chart, registerables } from "chart.js";
 import Statistics from "./Statistics";
 import TrackList from "./TrackList";
+import { useLocation } from "react-router-dom";
 
 Chart.register(...registerables);
 
@@ -42,6 +43,8 @@ const { Title, Text } = Typography;
 
 const PlaylistDetail = () => {
   const { id } = useParams();
+  const location = useLocation();
+  const { bookId } = location.state || {};
   const navigate = useNavigate();
   const { fetchAccessToken } = useAuth();
   const { play } = usePlayer();
@@ -98,7 +101,10 @@ const PlaylistDetail = () => {
   }, [id, fetchAccessToken]);
 
   const calculateGeneralStats = (audioFeaturesData) => {
-    if (!Array.isArray(audioFeaturesData)) return;
+    if (!Array.isArray(audioFeaturesData) || audioFeaturesData.length === 0) {
+      console.error("No audio features data available");
+      return;
+    }
 
     const stats = audioFeaturesData.reduce(
       (acc, feature) => {
@@ -239,7 +245,7 @@ const PlaylistDetail = () => {
   };
 
   const handleReadBookClick = () => {
-    navigate(`/read/${playlist.bookDetail.id}`);
+    navigate(`/read/${bookId}`);
   };
 
   const renderAudioFeaturesChart = () => {

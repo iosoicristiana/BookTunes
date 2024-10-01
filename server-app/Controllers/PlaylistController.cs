@@ -25,21 +25,21 @@ namespace server_app.Controllers
             _playlistService = playlistService;
         }
 
-        [HttpPost("mock-generate")]
-        [Authorize]
-        public IActionResult MockGeneratePlaylist([FromBody] PlaylistGenerationRequest requestData)
-        {
-            try
-            {
-                Console.WriteLine("Received data: " + JsonConvert.SerializeObject(requestData));
-                return Ok(new { message = "Mock endpoint received the data successfully" });
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("Error: " + ex.Message);
-                return StatusCode(500, new { message = ex.Message });
-            }
-        }
+        //[HttpPost("mock-generate")]
+        //[Authorize]
+        //public IActionResult MockGeneratePlaylist([FromBody] PlaylistGenerationRequest requestData)
+        //{
+        //    try
+        //    {
+        //        Console.WriteLine("Received data: " + JsonConvert.SerializeObject(requestData));
+        //        return Ok(new { message = "Mock endpoint received the data successfully" });
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        Console.WriteLine("Error: " + ex.Message);
+        //        return StatusCode(500, new { message = ex.Message });
+        //    }
+        //}
 
 
 
@@ -124,33 +124,33 @@ namespace server_app.Controllers
         }
 
 
-        [HttpGet("getPlaylist")]
-        [Authorize]
-        public async Task<IActionResult> GetAPlaylist(string id)
-        {
-            var userSpotifyId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        //[HttpGet("getPlaylist")]
+        //[Authorize]
+        //public async Task<IActionResult> GetAPlaylist(string id)
+        //{
+        //    var userSpotifyId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
-            if (string.IsNullOrEmpty(userSpotifyId))
-            {
-                return Unauthorized("Invalid token or user not found");
-            }
+        //    if (string.IsNullOrEmpty(userSpotifyId))
+        //    {
+        //        return Unauthorized("Invalid token or user not found");
+        //    }
 
-            var user = await _dbContext.Users.AsNoTracking().Where(u => u.SpotifyId == userSpotifyId).FirstOrDefaultAsync();
+        //    var user = await _dbContext.Users.AsNoTracking().Where(u => u.SpotifyId == userSpotifyId).FirstOrDefaultAsync();
 
-            if (user == null)
-            {
-                return BadRequest("User not found");
-            }
+        //    if (user == null)
+        //    {
+        //        return BadRequest("User not found");
+        //    }
 
-            var playlist = await _dbContext.Playlists.AsNoTracking().Where(p => p.Id == id).FirstOrDefaultAsync();
+        //    var playlist = await _dbContext.Playlists.AsNoTracking().Where(p => p.Id == id).FirstOrDefaultAsync();
 
-            if (playlist == null)
-            {
-                return BadRequest("Playlist not found");
-            }
+        //    if (playlist == null)
+        //    {
+        //        return BadRequest("Playlist not found");
+        //    }
 
-            return Ok(playlist);
-        }
+        //    return Ok(playlist);
+        //}
 
 
 

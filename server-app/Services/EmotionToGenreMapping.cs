@@ -51,7 +51,6 @@
                 Console.WriteLine(genre);
                 return genre;
             }
-            Console.WriteLine("am intrat pe classical classical");
             return "classical";
         }
     }

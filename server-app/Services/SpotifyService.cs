@@ -7,6 +7,7 @@ using server_app.Models;
 using server_app.Models.DTOs;
 using System.Drawing.Printing;
 using System.IdentityModel.Tokens.Jwt;
+using System.Net;
 using System.Net.Http.Headers;
 using System.Security.Claims;
 using System.Text;
@@ -186,6 +187,24 @@ public class SpotifyService
 
             var response = await _httpClient.GetAsync($"https://api.spotify.com/v1/recommendations?limit=20{genreQuery}{artistQuery}&target_valence={formattedValence}&target_energy={formattedEnergy}&target_tempo={formattedTempo}&target_mode={mode}{popularityQuery}");
 
+            if (response.StatusCode == (HttpStatusCode)429)
+            {
+                // Get the Retry-After header value
+                if (response.Headers.TryGetValues("Retry-After", out IEnumerable<string> retryAfterValues))
+                {
+                    int retryAfterSeconds = int.Parse(retryAfterValues.First());
+                    Console.WriteLine($"Rate limited. Retrying after {retryAfterSeconds} seconds...");
+
+                    // Wait for the specified time
+                    await Task.Delay(retryAfterSeconds * 1000);
+
+                    // Retry the current request after the delay
+                    response = await _httpClient.GetAsync($"https://api.spotify.com/v1/recommendations?limit=10{genreQuery}{artistQuery}&target_valence={formattedValence}&target_energy={formattedEnergy}&target_tempo={formattedTempo}&target_mode={mode}{popularityQuery}");
+                }
+            }
+
+
+
             if (response.IsSuccessStatusCode)
             {
                 var jsonContent = await response.Content.ReadAsStringAsync();
@@ -293,7 +312,7 @@ public class SpotifyService
         var topTracks = new List<string>();
 
         // Fetch top artists
-        var artistsResponse = await _httpClient.GetAsync("https://api.spotify.com/v1/me/top/artists?limit=10");
+        var artistsResponse = await _httpClient.GetAsync("https://api.spotify.com/v1/me/top/artists?limit=20");
         if (artistsResponse.IsSuccessStatusCode)
         {
             var artistsJson = await artistsResponse.Content.ReadAsStringAsync();
@@ -313,7 +332,7 @@ public class SpotifyService
         }
 
         // Fetch top tracks
-        var tracksResponse = await _httpClient.GetAsync("https://api.spotify.com/v1/me/top/tracks?limit=10");
+        var tracksResponse = await _httpClient.GetAsync("https://api.spotify.com/v1/me/top/tracks?limit=20");
         if (tracksResponse.IsSuccessStatusCode)
         {
             var tracksJson = await tracksResponse.Content.ReadAsStringAsync();

@@ -40,9 +40,6 @@ const Books = () => {
   const [currentPage, setCurrentPage] = useState(
     parseInt(query.get("page"), 10) || 1
   );
-  const [booksPerPage, setBooksPerPage] = useState(
-    parseInt(query.get("pageSize"), 10) || 12
-  ); // Number of books per page
   const [sortBy, setSortBy] = useState(
     query.get("sort") || "popularity_descending"
   ); // Sort by popularity or ascending
@@ -53,7 +50,6 @@ const Books = () => {
     const params = {
       search: searchTerm,
       page: currentPage,
-      pageSize: booksPerPage,
       sort: sortBy,
     };
     if (authorYearRange[0] && authorYearRange[1]) {
@@ -62,27 +58,18 @@ const Books = () => {
     }
 
     fetchBooks(params); // Fetch books on component mount and when parameters change
-  }, [
-    fetchBooks,
-    currentPage,
-    searchTerm,
-    sortBy,
-    booksPerPage,
-    authorYearRange,
-  ]);
+  }, [fetchBooks, currentPage, searchTerm, sortBy, authorYearRange]);
 
   const handleSearch = (value) => {
     setSearchTerm(value);
     setCurrentPage(1); // Reset to first page on new search
-    navigate(`?search=${value}&page=1&sort=${sortBy}&pageSize=${booksPerPage}`);
+    navigate(`?search=${value}&page=1&sort=${sortBy}`);
   };
 
   const handleSortChange = ({ key }) => {
     setSortBy(key);
     setCurrentPage(1); // Reset to first page on new sort
-    navigate(
-      `?search=${searchTerm}&page=1&sort=${key}&pageSize=${booksPerPage}`
-    );
+    navigate(`?search=${searchTerm}&page=1&sort=${key}`);
   };
 
   const handleYearRangeChange = (dates, dateStrings) => {
@@ -91,32 +78,29 @@ const Books = () => {
     );
     setCurrentPage(1); // Reset to first page on new filter
     navigate(
-      `?search=${searchTerm}&page=1&sort=${sortBy}&pageSize=${booksPerPage}&author_year_start=${dateStrings[0]}&author_year_end=${dateStrings[1]}`
+      `?search=${searchTerm}&page=1&sort=${sortBy}&&author_year_start=${dateStrings[0]}&author_year_end=${dateStrings[1]}`
     );
     setIsModalVisible(false);
   };
 
   // Change page
-  const paginate = (pageNumber, pageSize) => {
+  const paginate = (pageNumber) => {
     setCurrentPage(pageNumber);
-    setBooksPerPage(pageSize);
-    navigate(
-      `?search=${searchTerm}&page=${pageNumber}&sort=${sortBy}&pageSize=${pageSize}`
-    );
+    navigate(`?search=${searchTerm}&page=${pageNumber}&sort=${sortBy}`);
   };
 
   const sortMenuItems = [
     {
-      key: "popularity_descending",
-      label: "Popularity Descending",
-    },
-    {
-      key: "popularity_ascending",
-      label: "Popularity Ascending",
+      key: "popular",
+      label: "Popularity (Most to Least)",
     },
     {
       key: "ascending",
       label: "ID Ascending",
+    },
+    {
+      key: "descending",
+      label: "ID Descending",
     },
   ];
 
@@ -179,7 +163,6 @@ const Books = () => {
                   style={{
                     flex: 1,
                     minWidth: "200px",
-                    //backgroundColor: "rgba(255, 255, 255, 0.8)", //
                     borderRadius: "5px",
                   }}
                 />
@@ -190,7 +173,6 @@ const Books = () => {
                 >
                   <Button
                     style={{
-                      //backgroundColor: "rgba(255, 255, 255, 0.8)",
                       borderRadius: "5px",
                     }}
                   >
@@ -200,7 +182,6 @@ const Books = () => {
                 <Button
                   onClick={showModal}
                   style={{
-                    //backgroundColor: "rgba(255, 255, 255, 0.8)",
                     borderRadius: "5px",
                   }}
                 >
@@ -267,11 +248,8 @@ const Books = () => {
               <Pagination
                 current={currentPage}
                 total={totalBooks}
-                pageSize={booksPerPage}
                 onChange={paginate}
-                showSizeChanger
-                pageSizeOptions={["12", "24", "48"]}
-                onShowSizeChange={paginate}
+                showSizeChanger={false}
               />
             </div>
           </>
